@@ -471,6 +471,7 @@ class ExportFormat(object):
             operator.itemgetter('model', 'fields', 'ids', 'domain', 'import_compat')(params)
 
         Model = request.env[model].with_context(import_compat=import_compat, **params.get('context', {}))
+        request.env.cr.execute("select set_config('rls.current_user', '%d', false);" % (Model.env.uid or 1))
         if not Model._is_an_ordinary_table():
             fields = [field for field in fields if field['name'] != 'id']
 

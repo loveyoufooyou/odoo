@@ -1436,6 +1436,8 @@ class Request:
 
     @property
     def cr(self):
+        if self.session.uid:
+            self.env.cr.execute("select set_config('rls.current_user', '%d', false);" % (self.session.uid or 1))
         return self.env.cr
 
     @cr.setter

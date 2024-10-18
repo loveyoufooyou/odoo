@@ -3759,6 +3759,8 @@ class BaseModel(metaclass=MetaModel):
         """ Read from the database in order to fetch ``field`` (:class:`Field`
             instance) for ``self`` in cache.
         """
+        if self.env.uid:
+            self.env.cr.execute("select set_config('rls.current_user', '%d', false);" % (self.env.uid or 1))
         self.check_field_access_rights('read', [field.name])
         # determine which fields can be prefetched
         if self._context.get('prefetch_fields', True) and field.prefetch:
