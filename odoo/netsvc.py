@@ -13,12 +13,15 @@ import traceback
 import warnings
 
 import werkzeug.serving
+from loguru import logger
+# 除了这些之外，还需要修改一下log记录的方法，loguru好像没有 (msg, arg)，给他加上，改成用字符串占位符
 
 from . import release
 from . import sql_db
 from . import tools
 
-_logger = logging.getLogger(__name__)
+# _logger = logging.getLogger(__name__)
+_logger = logger
 
 def log(logger, level, prefix, msg, depth=None):
     indent=''
@@ -130,12 +133,12 @@ def init_logger():
         return
     _logger_init = True
 
-    old_factory = logging.getLogRecordFactory()
-    def record_factory(*args, **kwargs):
-        record = old_factory(*args, **kwargs)
-        record.perf_info = ""
-        return record
-    logging.setLogRecordFactory(record_factory)
+    # old_factory = logging.getLogRecordFactory()
+    # def record_factory(*args, **kwargs):
+    #     record = old_factory(*args, **kwargs)
+    #     record.perf_info = ""
+    #     return record
+    # logging.setLogRecordFactory(record_factory)
 
     # enable deprecation warnings (disabled by default)
     warnings.simplefilter('default', category=DeprecationWarning)
@@ -177,9 +180,11 @@ def init_logger():
     resetlocale()
 
     # create a format for log messages and dates
-    format = '%(asctime)s %(pid)s %(levelname)s %(dbname)s %(name)s: %(message)s %(perf_info)s'
+    format = '%(asctime)s %(pid)s %(levelname)s %(dbname)s %(name)s: %(message)s %(perf_info)s'  # 日志输出格式
     # Normal Handler on stderr
     handler = logging.StreamHandler()
+    formatter = logging.Formatter(format)
+    handler.setFormatter(formatter)
 
     if tools.config['syslog']:
         # SysLog Handler
@@ -235,7 +240,10 @@ def init_logger():
         }
         postgresqlHandler = PostgreSQLHandler()
         postgresqlHandler.setLevel(int(db_levels.get(tools.config['log_db_level'], tools.config['log_db_level'])))
-        logging.getLogger().addHandler(postgresqlHandler)
+        # logging.getLogger().addHandler(postgresqlHandler)
+        handlers.append(dict(
+            sink=postgresqlHandler, filter=lambda record: record['extra'].get('name') != 'elk_error')
+        )
 
     # Configure loggers levels
     pseudo_config = PSEUDOCONFIG_MAPPER.get(tools.config['log_level'], [])
@@ -243,11 +251,12 @@ def init_logger():
     logconfig = tools.config['log_handler']
 
     logging_configurations = DEFAULT_LOG_CONFIGURATION + pseudo_config + logconfig
-    for logconfig_item in logging_configurations:
-        loggername, level = logconfig_item.strip().split(':')
-        level = getattr(logging, level, logging.INFO)
-        logger = logging.getLogger(loggername)
-        logger.setLevel(level)
+    # for logconfig_item in logging_configurations:
+    #     loggername, level = logconfig_item.strip().split(':')
+    #     level = getattr(logging, level, logging.INFO)
+    #     logger = logging.getLogger(loggername)
+    #     logger.setLevel(level)
+    logger.configure(handler=handler)
 
     for logconfig_item in logging_configurations:
         _logger.debug('logger level set: "%s"', logconfig_item)
